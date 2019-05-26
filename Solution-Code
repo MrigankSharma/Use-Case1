@@ -1,0 +1,360 @@
+Company Use Cases:
+Case 1: Create a Single tier Architect environment for CMS like wordpress, Magento App on AWS Instance
+-------------------------------------------------------------------------------------------------------------
+8(code) - 11(done-general text) - 13(done-heading) - 14(given task)
+green:given    purple:done/steps taken    blue:URL    red:problem/incomplete
+-------------------------------------------------------------------------------------------------------------
+-Googled single tier achitecture
+
+ https://docs.bitnami.com/google-templates/singletier-vs-multitier/
+                
+     SINGLE TIER                        MULTI  TIER
+
+===============
+Server Configure Details:
+AWS Instance Type: t2.micro
+AMI or Server OS: CentOS 7 (x86_64) - with Updates HVM
+===============
+
+-1&2:Googled centOS and proceeded
+
+
+
+
+Instance launched name: task1 instance centOS, with default 8GB root disk.
+
+<<<<
+yet more to searchEC2 charges for Micro instances are free for up to 750 hours a month if you qualify for the AWS Free Tier
+==PV and HVM AMIs: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html
+>>>>>
+
+===============
+
+Ssh login different
+
+
+===============
+Disk Layout:
+    1. Disk1: 8GB for / ( for the root volume ) 
+    2. Attach 2 more encrypted Volume with disk accidental termination policy at least 4GB Size of volume when you launched your instance
+===============
+1.Already allocated by default , during centOS setup.
+-Googled encrypted Volume:
+Amazon EBS Encryption
+When you attach an encrypted Amazon EBS volume to a supported Amazon Elastic Compute Cloud (Amazon EC2) instance type, data stored at rest on the volume, disk I/O, and snapshots created from the volume are all encrypted. The encryption occurs on the servers that host Amazon EC2 instances. 
+Source: (https://docs.aws.amazon.com/kms/latest/developerguide/services-ebs.html)
+
+-disk accidental termination of volumes(disks) not found
+
+
+2. Created volumes: task1 - pv1, task1 - pv2
+And encrypted volume like below:
+
+=============
+Make these volume LVM type for future app data size grow requirement: 
+=============
+4gb -4gb not possible -- something goes in reserve storage
+Volume Structure: pv1(4GB)+pv2(4GB) = vg1(8GB) --->> lvm1(4GB) & lvm 2(3.79GB)
+
+Pvcreate command not found
+How to troubleshoot?? How to find package name from centOS
+--->>>> yum install lvm2* -y (google)
+
+[root@ip-172-31-29-254 ~]# fdisk -l
+
+Disk /dev/xvda: 8589 MB, 8589934592 bytes, 16777216 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x000b956b
+
+    Device Boot      Start         End      Blocks   Id  System
+/dev/xvda1   *        2048    16777215     8387584   83  Linux
+
+Disk /dev/xvdf: 4294 MB, 4294967296 bytes, 8388608 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/xvdg: 4294 MB, 4294967296 bytes, 8388608 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+[root@ip-172-31-29-254 ~]# pvcreate /dev/xvdf /dev/xvdg
+  Physical volume "/dev/xvdf" successfully created.
+  Physical volume "/dev/xvdg" successfully created.
+[root@ip-172-31-29-254 ~]# vgcreate ^C
+[root@ip-172-31-29-254 ~]# vgcreate vg1 /dev/xvdf /dev/xvdg
+  Volume group "vg1" successfully created
+[root@ip-172-31-29-254 ~]# fdisk -l
+
+Disk /dev/xvda: 8589 MB, 8589934592 bytes, 16777216 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x000b956b
+
+    Device Boot      Start         End      Blocks   Id  System
+/dev/xvda1   *        2048    16777215     8387584   83  Linux
+
+Disk /dev/xvdf: 4294 MB, 4294967296 bytes, 8388608 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/xvdg: 4294 MB, 4294967296 bytes, 8388608 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+[root@ip-172-31-29-254 ~]# fdisk --help
+fdisk: invalid option -- '-'
+Usage:
+ fdisk [options] <disk>    change partition table
+ fdisk [options] -l <disk> list partition table(s)
+ fdisk -s <partition>      give partition size(s) in blocks
+
+Options:
+ -b <size>             sector size (512, 1024, 2048 or 4096)
+ -c[=<mode>]           compatible mode: 'dos' or 'nondos' (default)
+ -h                    print this help text
+ -u[=<unit>]           display units: 'cylinders' or 'sectors' (default)
+ -v                    print program version
+ -C <number>           specify the number of cylinders
+ -H <number>           specify the number of heads
+ -S <number>           specify the number of sectors per track
+
+[root@ip-172-31-29-254 ~]# fdisk -uv
+Usage:
+ fdisk [options] <disk>    change partition table
+ fdisk [options] -l <disk> list partition table(s)
+ fdisk -s <partition>      give partition size(s) in blocks
+
+Options:
+ -b <size>             sector size (512, 1024, 2048 or 4096)
+ -c[=<mode>]           compatible mode: 'dos' or 'nondos' (default)
+ -h                    print this help text
+ -u[=<unit>]           display units: 'cylinders' or 'sectors' (default)
+ -v                    print program version
+ -C <number>           specify the number of cylinders
+ -H <number>           specify the number of heads
+ -S <number>           specify the number of sectors per track
+
+[root@ip-172-31-29-254 ~]# fdisk -lb
+fdisk: option requires an argument -- 'b'
+Usage:
+ fdisk [options] <disk>    change partition table
+ fdisk [options] -l <disk> list partition table(s)
+ fdisk -s <partition>      give partition size(s) in blocks
+
+Options:
+ -b <size>             sector size (512, 1024, 2048 or 4096)
+ -c[=<mode>]           compatible mode: 'dos' or 'nondos' (default)
+ -h                    print this help text
+ -u[=<unit>]           display units: 'cylinders' or 'sectors' (default)
+ -v                    print program version
+ -C <number>           specify the number of cylinders
+ -H <number>           specify the number of heads
+ -S <number>           specify the number of sectors per track
+
+[root@ip-172-31-29-254 ~]# fdisk -l
+
+Disk /dev/xvda: 8589 MB, 8589934592 bytes, 16777216 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x000b956b
+
+    Device Boot      Start         End      Blocks   Id  System
+/dev/xvda1   *        2048    16777215     8387584   83  Linux
+
+Disk /dev/xvdf: 4294 MB, 4294967296 bytes, 8388608 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/xvdg: 4294 MB, 4294967296 bytes, 8388608 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+[root@ip-172-31-29-254 ~]# vgdisplay
+  --- Volume group ---
+  VG Name               vg1
+  System ID             
+  Format                lvm2
+  Metadata Areas        2
+  Metadata Sequence No  1
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                2
+  Act PV                2
+  VG Size               7.99 GiB
+  PE Size               4.00 MiB
+  Total PE              2046
+  Alloc PE / Size       0 / 0   
+  Free  PE / Size       2046 / 7.99 GiB
+  VG UUID               KMPNiR-lgT4-jWqD-ybWg-5KRE-3tL4-3yGcCt
+   
+[root@ip-172-31-29-254 ~]# lvcreate -n lvm1 -L 4G vg1
+  Logical volume "lvm1" created.
+[root@ip-172-31-29-254 ~]# lvmdisplay
+-bash: lvmdisplay: command not found
+[root@ip-172-31-29-254 ~]# lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/vg1/lvm1
+  LV Name                lvm1
+  VG Name                vg1
+  LV UUID                ww85fn-fCwT-cpCq-oUpE-zb1t-w3ZY-CSfIRN
+  LV Write Access        read/write
+  LV Creation host, time ip-172-31-29-254.ap-south-1.compute.internal, 2019-05-24 18:17:39 +0000
+  LV Status              available
+  # open                 0
+  LV Size                4.00 GiB
+  Current LE             1024
+  Segments               2
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+   
+[root@ip-172-31-29-254 ~]# lvcreate -n lvm2 -L 4G vg1
+  Volume group "vg1" has insufficient free space (1022 extents): 1024 required.
+[root@ip-172-31-29-254 ~]# lvcreate -n lvm2 -l 95%FREE vg1
+  Logical volume "lvm2" created.
+[root@ip-172-31-29-254 ~]# lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/vg1/lvm1
+  LV Name                lvm1
+  VG Name                vg1
+  LV UUID                ww85fn-fCwT-cpCq-oUpE-zb1t-w3ZY-CSfIRN
+  LV Write Access        read/write
+  LV Creation host, time ip-172-31-29-254.ap-south-1.compute.internal, 2019-05-24 18:17:39 +0000
+  LV Status              available
+  # open                 0
+  LV Size                4.00 GiB
+  Current LE             1024
+  Segments               2
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+   
+  --- Logical volume ---
+  LV Path                /dev/vg1/lvm2
+  LV Name                lvm2
+  VG Name                vg1
+  LV UUID                kzfLk1-mcKj-FFHP-GaOt-I2CR-GY7f-dJcqEl
+  LV Write Access        read/write
+  LV Creation host, time ip-172-31-29-254.ap-south-1.compute.internal, 2019-05-24 18:19:47 +0000
+  LV Status              available
+  # open                 0
+  LV Size                <3.79 GiB
+  Current LE             970
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:1    
+
+=============
+4. Format with xfs file system: Done mkfs.xfs
+5. Disk2: 4GB for Home ( For web data, mount this on /home with "no execution binary" security flag)
+    Disk3: 4Gb for MySQL ( mount this drive on /var/lib/mysql "no execution binary" before installation of mariadb server )
+ --Note that, both volume will be mounted automatically whenever you reboot your server.
+===============
+
+[root@ip-172-31-29-254 ~]# lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/vg1/lvm1
+  LV Name                lvm1
+  VG Name                vg1
+  LV UUID                ww85fn-fCwT-cpCq-oUpE-zb1t-w3ZY-CSfIRN
+  LV Write Access        read/write
+  LV Creation host, time ip-172-31-29-254.ap-south-1.compute.internal, 2019-05-24 18:17:39 +0000
+  LV Status              available
+  # open                 0
+  LV Size                4.00 GiB
+  Current LE             1024
+  Segments               2
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+   
+  --- Logical volume ---
+  LV Path                /dev/vg1/lvm2
+  LV Name                lvm2
+  VG Name                vg1
+  LV UUID                kzfLk1-mcKj-FFHP-GaOt-I2CR-GY7f-dJcqEl
+  LV Write Access        read/write
+  LV Creation host, time ip-172-31-29-254.ap-south-1.compute.internal, 2019-05-24 18:19:47 +0000
+  LV Status              available
+  # open                 0
+  LV Size                <3.79 GiB
+  Current LE             970
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:1
+   
+Now mounting
+vi /etc/fstab
+
+(exec / noexec - Permit/Prevent the execution of binaries from the filesystem. )
+(https://help.ubuntu.com/community/Fstab)
+
+
+=============
+Attach one Elastic IP to your instance
+=============
+Elastic IP Addresses
+An Elastic IP address is a static IPv4 address designed for dynamic cloud computing. An Elastic IP address is associated with your AWS account. With an Elastic IP address, you can mask the failure of an instance or software by rapidly remapping the address to another instance in your account.
+An Elastic IP address is a public IPv4 address, which is reachable from the internet. If your instance does not have a public IPv4 address, you can associate an Elastic IP address with your instance to enable communication with the internet; for example, to connect to your instance from your local computer.
+( https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html)
+
+Elastic ip pending
+
+===================
+Disable SElinux
+===================
+
+Googled: SElinux
+(https://linuxize.com/post/how-to-disable-selinux-on-centos-7/)
+
+[root@ip-172-31-29-254 ~]# sestatus
+SELinux status:                 enabled
+SELinuxfs mount:                /sys/fs/selinux
+SELinux root directory:         /etc/selinux
+Loaded policy name:             targeted
+Current mode:                   enforcing
+Mode from config file:          enforcing
+Policy MLS status:              enabled
+Policy deny_unknown status:     allowed
+Max kernel policy version:      31
+
+[root@ip-172-31-29-254 ~]# setenforce 0
+
+==============
+Set timezone of Server to IST
+==============
+
+Googled:
+root@mrigank-K53E:~# ls /etc/sysconfig/
+ls: cannot access '/etc/sysconfig/': No such file or directory
+(https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html)
+
+
+
